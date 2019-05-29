@@ -1,69 +1,78 @@
-import os
-from PIL import Image
-from keras.preprocessing.image import img_to_array
-import numpy as np 
-import scipy.io as scio
+from keras import backend as K
+from keras.models import Sequential
+from keras.layers.convolutional import Conv2D,MaxPooling2D
+from keras.layers.core import Activation,Flatten,Dense,Dropout
+from keras.layers.normalization import BatchNormalization
+from keras.utils import np_utils
 
-class DataReader:
-	def __init__(self):
-		self.path = ''      #mat文件的路径
-		self.directory = ''     #img的路径		
-		self.filename = ''    #每张img的文件名
-		self.n_sample = int()      #样本的数量
-		self.width = int()     #改变后的图片宽
-		self.height = int()   #改变后的图片高
-		self.index = []
+class NN:
+    def __init__(self):
+        self.input_shape = ''   
+        self.classes = ''     
 
-	def MatReader(self, path, filename, n_sample):
-		path_1 = path + '/' + filename + '.mat'
-		#print(path_1)
-		data1 = scio.loadmat(path_1)
-		P = data1[filename][0: n_sample]
-		return P
-	
-	def ImgReader_index(self, index, directory, width, height):
-		data = []
-		for i in index:
-			#print(i[0])
-			img = Image.open( directory + '/' + str(i[0]) + '.jpg' )
-			resized_image = img.resize((width, height), Image.ANTIALIAS)
-			arr = np.asarray(resized_image, dtype=np.float32)       # 数组维度(128, 192, 3)
-			arr = img_to_array(resized_image)                          # 数组维度(128, 192, 3)
-			arr /= 125
-			#print(arr)
-			data.append(arr)
-		result = np.array(data)
-		return result
-	
-	def ImgReader(self, directory,width, height):    #width和height是改变后的图片的宽和高
-		data = []
-		for imgname in os.listdir(directory):    # 参数是文件夹路径 directory 
-			#print(imgname)  
-			img = Image.open( directory + '/' + imgname )
-			resized_image = img.resize((width, height), Image.ANTIALIAS)
-			arr = np.asarray(resized_image, dtype=np.float64)       # 数组维度(128, 192, 3)
-			arr = img_to_array(resized_image)                          # 数组维度(128, 192, 3)
-			data.append(arr)
-		result = np.array(data)
-		return result
-
-class criterion:
-	def __init__(self):
-		self.Prediction = []
-		self.y_test = []	
-		
-	def Accuracy(self, Prediction, y_test):
-		ACCURACY = np.mean(1 - np.true_divide(np.fabs(np.subtract(Prediction,y_test)),y_test))
-		return ACCURACY
-	
-	def Rsquare(self, Prediction, y_test):
-		R_square = 1 - sum(np.square((Prediction-y_test)))/sum(np.square((y_test-np.mean(y_test))))
-		return R_square[0]
-	
-	def Rmae(self, Prediction, y_test):
-		RMAE = max(np.fabs(y_test - Prediction))/np.std(y_test,ddof=1)
-		return RMAE[0]
-	
-	def Raae(self, Prediction, y_test):
-		RAAE = np.mean(np.fabs(np.subtract(Prediction,y_test)))/np.std(y_test,ddof=1)
-		return RAAE
+    def LeNet(self, input_shape, classes):
+        model = Sequential()
+        model.add(Conv2D(20, kernel_size=5, padding="same",
+                        input_shape=input_shape))
+        model.add(Activation("relu"))
+        model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+		# CONV => RELU => POOL
+        model.add(Conv2D(50, kernel_size=5, padding="same"))
+        model.add(Activation("relu"))
+        model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+		# Flatten => RELU layers
+        model.add(Flatten())
+        model.add(Dense(500))
+        model.add(Activation("relu"))
+        # Output Layer
+        if classes==1:
+            model.add(Dense(classes))
+        else:
+            model.add(Dense(classes))
+            model.add(Activation("softmax"))  
+        return model
+        
+    def AlexNet(self, input_shape, classes):
+        model = Sequential()
+        #第一段  
+        model.add(Conv2D(filters=96, kernel_size=(11,11),
+                         strides=(4,4), padding='valid',                 
+                         input_shape=input_shape,                 
+                         activation='relu'))
+        model.add(BatchNormalization())
+        model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='valid'))
+        #第二段 
+        model.add(Conv2D(filters=256, kernel_size=(5,5),
+                         strides=(1,1), padding='same',                                  
+                         activation='relu'))
+        model.add(BatchNormalization())
+        model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='valid'))
+        #第三段
+        model.add(Conv2D(filters=384, kernel_size=(3,3), 
+                        strides=(1,1), padding='same', 
+                        activation='relu'))
+        model.add(Conv2D(filters=384, kernel_size=(3,3), 
+                        strides=(1,1), padding='same', 
+                        activation='relu')) 
+        model.add(Conv2D(filters=256, kernel_size=(3,3), 
+                        strides=(1,1), padding='same', 
+                        activation='relu'))
+        model.add(MaxPooling2D(pool_size=(3,3), 
+                                strides=(2,2), padding='valid'))
+        #第四段
+        model.add(Flatten())
+        model.add(Dense(4096, activation='relu'))
+        model.add(Dropout(0.5))
+        
+        model.add(Dense(4096, activation='relu'))
+        model.add(Dropout(0.5))
+        
+        model.add(Dense(1000, activation='relu'))
+        model.add(Dropout(0.5))
+        # Output Layer
+        if classes==1:
+            model.add(Dense(classes))
+        else:
+            model.add(Dense(classes))
+            model.add(Activation("softmax"))            
+        return model
